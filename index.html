@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dodo AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#09090b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        /* Optimisation du défilement et masquage de la scrollbar pour mobile */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        body { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 font-sans antialiased h-screen flex flex-col justify-between overflow-hidden">
+
+    <header class="bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 px-4 py-3 flex items-center justify-between sticky top-0 z-50 select-none">
+        <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <ion-icon name="flash" class="text-white text-lg"></ion-icon>
+            </div>
+            <div>
+                <h1 class="text-base font-bold tracking-wide bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">Dodo AI</h1>
+                <p class="text-[10px] text-zinc-400 font-medium" id="status-text">Prêt</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center space-x-2">
+            <select id="model-select" class="bg-zinc-800 border border-zinc-700 text-xs rounded-lg px-2 py-1.5 text-zinc-200 focus:outline-none focus:border-indigo-500 max-w-[120px]">
+                <option value="gemini-3.1-flash-lite">3.1 Flash Lite</option>
+                <option value="gemini-3.5-flash" selected>3.5 Flash</option>
+                <option value="gemini-3.1-pro">3.1 Pro</option>
+            </select>
+            <button id="api-btn" class="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 active:scale-95 rounded-lg flex items-center justify-center transition-all">
+                <ion-icon name="key-outline" class="text-zinc-300 text-lg"></ion-icon>
+            </button>
+        </div>
+    </header>
+
+    <main id="chat-container" class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar pb-6">
+        <div class="flex items-start space-x-2.5 max-w-[85%] animate-fade-in">
+            <div class="w-7 h-7 min-w-[28px] bg-zinc-800 rounded-full flex items-center justify-center border border-zinc-700">
+                <ion-icon name="ribbon-outline" class="text-indigo-400 text-sm"></ion-icon>
+            </div>
+            <div class="bg-zinc-900 border border-zinc-800/60 rounded-2xl rounded-tl-none px-4 py-2.5 shadow-sm">
+                <p class="text-sm leading-relaxed text-zinc-300">Salut ! Je suis **Dodo AI**. Comment puis-je t'aider aujourd'hui sur ton Moto G ? 🚀</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="p-3 bg-zinc-900/60 backdrop-blur-md border-t border-zinc-800/80 sticky bottom-0 z-40">
+        <form id="chat-form" class="flex items-center space-x-2 max-w-4xl mx-auto">
+            <div class="flex-1 relative flex items-center bg-zinc-800/90 border border-zinc-700/60 rounded-xl focus-within:border-indigo-500 transition-all px-3 py-1.5">
+                <textarea id="chat-input" rows="1" placeholder="Message..." class="w-full bg-transparent text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none resize-none max-h-24 py-1 no-scrollbar" required></textarea>
+            </div>
+            <button type="submit" id="send-btn" class="w-10 h-10 min-w-[40px] bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-xl flex items-center justify-center shadow-md shadow-indigo-600/10 transition-all">
+                <ion-icon name="paper-plane" class="text-lg"></ion-icon>
+            </button>
+        </form>
+    </footer>
+
+    <div id="api-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 w-full max-w-sm shadow-xl animate-scale-up">
+            <h3 class="text-base font-bold text-zinc-100 mb-2 flex items-center gap-2">
+                <ion-icon name="key" class="text-indigo-400"></ion-icon> Configurer l'API Gemini
+            </h3>
+            <p class="text-xs text-zinc-400 mb-4">Ta clé reste stockée localement en toute sécurité sur ton appareil.</p>
+            <input type="password" id="api-key-input" placeholder="Colle ta clé API ici..." class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500 mb-4">
+            <div class="flex space-x-2 justify-end">
+                <button id="close-modal" class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-semibold transition-all">Annuler</button>
+                <button id="save-key" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-all">Sauvegarder</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Enregistrement du Service Worker pour la PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker enregistré !', reg.scope))
+                    .catch(err => console.log('Échec de l\'enregistrement du SW :', err));
+            });
+        }
+
+        // Éléments du DOM
+        const chatContainer = document.getElementById('chat-container');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const modelSelect = document.getElementById('model-select');
+        const statusText = document.getElementById('status-text');
+        const apiBtn = document.getElementById('api-btn');
+        const apiModal = document.getElementById('api-modal');
+        const closeModal = document.getElementById('close-modal');
+        const saveKeyBtn = document.getElementById('save-key');
+        const apiKeyInput = document.getElementById('api-key-input');
+
+        let apiKey = localStorage.getItem('gemini_api_key') || '';
+
+        // Gestion de la hauteur dynamique du textarea
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight - 4) + 'px';
+        });
+
+        // Modales Clé API
+        apiBtn.addEventListener('click', () => {
+            apiKeyInput.value = apiKey;
+            apiModal.classList.remove('hidden');
+        });
+        closeModal.addEventListener('click', () => apiModal.classList.add('hidden'));
+        saveKeyBtn.addEventListener('click', () => {
+            apiKey = apiKeyInput.value.trim();
+            localStorage.setItem('gemini_api_key', apiKey);
+            apiModal.classList.add('hidden');
+            updateStatus();
+        });
+
+        function updateStatus() {
+            if(!apiKey) {
+                statusText.innerText = "Clé API manquante";
+                statusText.className = "text-[10px] text-amber-400 font-medium";
+            } else {
+                statusText.innerText = "Prêt";
+                statusText.className = "text-[10px] text-emerald-400 font-medium";
+            }
+        }
+        updateStatus();
+
+        // Fonction pour ajouter un message à l'écran
+        function appendMessage(text, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex items-start space-x-2.5 max-w-[85%] ${isUser ? 'ml-auto flex-row-reverse space-x-reverse' : ''} animate-fade-in`;
+
+            const iconContainer = document.createElement('div');
+            iconContainer.className = `w-7 h-7 min-w-[28px] rounded-full flex items-center justify-center border ${isUser ? 'bg-indigo-600 border-indigo-500' : 'bg-zinc-800 border-zinc-700'}`;
+            
+            const icon = document.createElement('ion-icon');
+            icon.setAttribute('name', isUser ? 'person-outline' : 'flash-outline');
+            icon.className = `text-sm ${isUser ? 'text-white' : 'text-indigo-400'}`;
+            iconContainer.appendChild(icon);
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = `${isUser ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-zinc-900 border border-zinc-800/60 text-zinc-300 rounded-tl-none'} rounded-2xl px-4 py-2.5 shadow-sm text-sm leading-relaxed break-words`;
+            contentDiv.innerText = text;
+
+            messageDiv.appendChild(iconContainer);
+            messageDiv.appendChild(contentDiv);
+            chatContainer.appendChild(messageDiv);
+            
+            // Scroll fluide automatique adapté au mobile
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        }
+
+        // Appel API Google Gemini
+        async function fetchGeminiResponse(promptText) {
+            const currentModel = modelSelect.value;
+            // Endpoint unifié pour les requêtes de génération de texte de l'API Gemini
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: promptText }] }]
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || "Erreur lors de la communication.");
+            }
+
+            const data = await response.json();
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        // Soumission du Formulaire
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            if (!apiKey) {
+                apiModal.classList.remove('hidden');
+                return;
+            }
+
+            // Ajout du message utilisateur
+            appendMessage(message, true);
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+            
+            statusText.innerText = "Dodo réfléchit...";
+            statusText.className = "text-[10px] text-indigo-400 font-medium animate-pulse";
+
+            try {
+                const reply = await fetchGeminiResponse(message);
+                appendMessage(reply, false);
+                updateStatus();
+            } catch (err) {
+                appendMessage(`Erreur : ${err.message}`, false);
+                statusText.innerText = "Erreur de connexion";
+                statusText.className = "text-[10px] text-rose-400 font-medium";
+            }
+        });
+    </script>
+</body>
+</html>
